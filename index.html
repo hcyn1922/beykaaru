@@ -14,11 +14,11 @@ body { display:flex; flex-direction:column; align-items:center; gap:12px;
   padding-block:14px; box-sizing:border-box; font:15px/1.4 ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
   user-select:none; -webkit-user-select:none; overflow:hidden }
 #head { width:min(100%,960px); display:flex; flex-direction:column; align-items:center; gap:10px; min-width:0 }
-#letters { width:100%; max-width:100%; display:flex; gap:6px; overflow-x:auto; padding:4px 2px 8px; scrollbar-width:thin;
-  scrollbar-color:#333 transparent; justify-content:safe center; box-sizing:border-box }
-@media (min-width:700px){ #letters { flex-wrap:wrap; justify-content:center; overflow-x:visible } }
-#letters button { flex:0 0 auto; width:46px; height:46px; border-radius:12px; border:1.5px solid #2c2c2c; background:transparent }
-#letters button svg { width:34px; height:28px; fill:#6f6f6f; transition:fill .15s }
+/* letter list: 13 per row = 2 rows on wide screens; narrower screens wrap into more rows */
+#letters { --b:46px; --g:6px; display:flex; flex-wrap:wrap; justify-content:center; gap:var(--g);
+  width:100%; max-width:calc(13*var(--b) + 12*var(--g)); padding:2px 0; box-sizing:border-box }
+#letters button { flex:0 0 auto; width:var(--b); height:var(--b); border-radius:12px; border:1.5px solid #2c2c2c; background:transparent }
+#letters button svg { width:74%; height:62%; fill:#6f6f6f; transition:fill .15s }
 #letters button:hover svg { fill:#aaa }
 #letters button[aria-pressed="true"] { border-color:var(--accent); background:#1a0d0d }
 #letters button[aria-pressed="true"] svg { fill:#eee }
@@ -59,17 +59,21 @@ button:disabled { opacity:.35; cursor:default }
 @media (prefers-reduced-motion: reduce){ #pop, #pop .card { animation:none } }
 [hidden] { display:none !important }
 #hint { font-size:13px; color:#777; min-height:1.4em; text-align:center }
-@media (max-height:700px){ button { width:48px; height:48px; font-size:26px } #top button { width:42px; height:42px } .readout b { font-size:19px } }
+@media (max-width:520px){ #letters { --b:40px; --g:5px } .bar { gap:10px 20px } .controls { gap:10px }
+  button { width:44px; height:44px; font-size:26px } #top button { width:42px; height:42px } .readout b { font-size:19px } }
+@media (max-width:380px){ #letters { --b:37px; --g:4px } .bar { gap:8px 14px } .controls { gap:8px }
+  button { width:40px; height:40px; font-size:24px } .readout { min-width:4.5ch } }
+@media (max-height:700px) and (min-width:521px){ button { width:48px; height:48px; font-size:26px } #top button { width:42px; height:42px } .readout b { font-size:19px } }
 </style>
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}</style>
 </head>
 <body>
 <div id="head">
+  <div id="letters" dir="rtl" role="group" aria-label="Choose a letter"></div>
   <div id="top" class="wait">
     <button id="play" aria-label="Play"><svg viewBox="0 0 24 24"><path class="solid" d="M8 5.5v13l11-6.5z"/></svg></button>
     <button id="reset" aria-label="Start over"><svg viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></svg></button>
   </div>
-  <div id="letters" dir="rtl" role="group" aria-label="Choose a letter"></div>
 </div>
 <div id="wrap"><canvas id="c" aria-label="3D letter with bouncing dots. Tap inside the letter to start, drag to look around."></canvas></div>
 <div class="bar wait">
@@ -335,6 +339,13 @@ LETTERS.forEach((L,i)=>{ const b=document.createElement('button');
   b.innerHTML = `<svg viewBox="-400 -300 800 600" aria-hidden="true"><path fill-rule="evenodd" d="${L.icon}"/></svg>`;
   b.onclick = ()=>{ if(i!==current) selectLetter(i,false); };
   strip.appendChild(b); });
+// balance rows: as few rows as fit (2 on wide screens), with the letters spread evenly across them
+function balanceRows(){
+  const cs=getComputedStyle(strip), b=parseFloat(cs.getPropertyValue('--b')), g=parseFloat(cs.getPropertyValue('--g'));
+  const avail=strip.parentElement.clientWidth, n=LETTERS.length;
+  const fit=Math.max(1, Math.min(13, Math.floor((avail+g)/(b+g)))), rows=Math.ceil(n/fit), per=Math.ceil(n/rows);
+  strip.style.maxWidth = (per*b + (per-1)*g) + 'px'; }
+new ResizeObserver(balanceRows).observe(strip.parentElement);
 
 // ---------- pointer: tap to launch, drag to orbit, pinch / wheel to zoom ----------
 const pts = new Map(); let gesture=null;
